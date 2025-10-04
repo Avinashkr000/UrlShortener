@@ -112,4 +112,9 @@ public class UrlService {
         entity.setLastClickedAt(LocalDateTime.now());
         urlRepository.save(entity);
     }
+
+    public UrlEntity getUrlByAlias(String alias) {
+        return urlRepository.findByShortCode(alias).orElse(null);
+    }
+
 }
