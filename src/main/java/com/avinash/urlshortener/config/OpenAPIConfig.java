@@ -19,8 +19,10 @@ public class OpenAPIConfig {
                         .description("API documentation for the URL Shortener project built using Java & Spring Boot.")
                         .contact(new Contact()
                                 .name("Avinash Kumar")
-                                .email("avinash@example.com")
+                                .email("ak749299.ak@gmail.com")
                                 .url("https://github.com/Avinashkr000"))
+                        .contact(new Contact()
+                                .url("https://www.linkedin.com/in/avinash-java-backend/"))
                         .license(new License()
                                 .name("Apache 2.0")
                                 .url("http://springdoc.org")));
