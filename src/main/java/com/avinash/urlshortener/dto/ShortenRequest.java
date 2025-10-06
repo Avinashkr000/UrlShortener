@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class ShortenRequest {
 
@@ -16,4 +18,11 @@ public class ShortenRequest {
 
     // optional expiry in days (default from properties)
     private Integer expiryInDays;
+
+    public LocalDateTime getExpiryAt() {
+        if (expiryInDays == null) {
+            return null;
+        }
+        return LocalDateTime.now().plusDays(expiryInDays);
+    }
 }

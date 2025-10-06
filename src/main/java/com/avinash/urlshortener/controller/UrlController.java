@@ -1,16 +1,13 @@
 package com.avinash.urlshortener.controller;
 
 import com.avinash.urlshortener.dto.ShortenRequest;
-import com.avinash.urlshortener.dto.ShortenResponse;
 import com.avinash.urlshortener.model.UrlEntity;
 import com.avinash.urlshortener.service.UrlService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/url")
@@ -20,19 +17,16 @@ public class UrlController {
     private final UrlService urlService;
 
     @PostMapping("/shorten")
-    public ResponseEntity<ShortenResponse> shortenUrl(@Valid @RequestBody ShortenRequest request) {
-        String shortUrl = urlService.createShortUrl(request);
-        return new ResponseEntity<>(new ShortenResponse(shortUrl), HttpStatus.CREATED);
-    }
-
-    @GetMapping("/info/{alias}")
-    public ResponseEntity<?> getUrlInfo(@PathVariable String alias) {
-        UrlEntity url = urlService.getUrlByAlias(alias);
-        if (url == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Alias not found"));
+    public ResponseEntity<?> shortenUrl(@RequestBody /*@Valid if you have validation*/ ShortenRequest req) {
+        // map DTO -> entity
+        UrlEntity entity = new UrlEntity();
+        entity.setLongUrl(req.getLongUrl());
+        if (req.getExpiryAt() != null) {
+            entity.setExpiryAt(req.getExpiryAt());
+        } else {
+            entity.setExpiryAt(LocalDateTime.now().plusDays(30));
         }
-        return ResponseEntity.ok(url);
+        UrlEntity saved = urlService.createShortUrl(entity);
+        return ResponseEntity.status(201).body(saved);
     }
-
 }
