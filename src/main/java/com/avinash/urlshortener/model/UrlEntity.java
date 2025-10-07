@@ -1,17 +1,19 @@
 package com.avinash.urlshortener.model;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "urls", indexes = {@Index(columnList = "short_code")})
+@Table(name = "urls", indexes = {
+        @Index(name = "idx_shortcode", columnList = "short_code", unique = true)
+})
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class UrlEntity {
 
     @Id

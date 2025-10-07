@@ -1,13 +1,15 @@
 package com.avinash.urlshortener.controller;
 
 import com.avinash.urlshortener.dto.ShortenRequest;
+import com.avinash.urlshortener.dto.ShortenResponse;
 import com.avinash.urlshortener.model.UrlEntity;
 import com.avinash.urlshortener.service.UrlService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/url")
@@ -16,17 +18,16 @@ public class UrlController {
 
     private final UrlService urlService;
 
+    @Value("${app.base-url:http://localhost:8080/}")
+    private String baseUrl;
+
     @PostMapping("/shorten")
-    public ResponseEntity<?> shortenUrl(@RequestBody /*@Valid if you have validation*/ ShortenRequest req) {
-        // map DTO -> entity
+    public ResponseEntity<ShortenResponse> shortenUrl(@Valid @RequestBody ShortenRequest req) {
         UrlEntity entity = new UrlEntity();
         entity.setLongUrl(req.getLongUrl());
-        if (req.getExpiryAt() != null) {
-            entity.setExpiryAt(req.getExpiryAt());
-        } else {
-            entity.setExpiryAt(LocalDateTime.now().plusDays(30));
-        }
+        entity.setExpiryAt(req.getExpiryAt()); // may be null -> service sets default
         UrlEntity saved = urlService.createShortUrl(entity);
-        return ResponseEntity.status(201).body(saved);
+        String shortUrl = baseUrl.endsWith("/") ? baseUrl + saved.getShortCode() : baseUrl + "/" + saved.getShortCode();
+        return ResponseEntity.status(201).body(new ShortenResponse(saved.getShortCode(), shortUrl));
     }
 }

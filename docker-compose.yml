@@ -1,54 +1,66 @@
+# ------------------------------------------------------------
+# ✅ Docker Compose for URL Shortener App (Java + MySQL + Redis)
+# ------------------------------------------------------------
+
 services:
   mysql:
     image: mysql:8.0
     container_name: urlshortener-mysql
+    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: yourpassword
       MYSQL_DATABASE: url_shortener
     ports:
-      - "3307:3306"
+      - "3307:3306"           # ✅ Avoids conflict with local MySQL
+    volumes:
+      - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
-      retries: 5
-    volumes:
-      - mysql-data:/var/lib/mysql
+      retries: 10
+    networks:
+      - app-network
 
   redis:
-    image: redis:7
+    image: redis:latest
     container_name: urlshortener-redis
+    restart: always
     ports:
       - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - app-network
 
   app:
     build: .
     container_name: urlshortener-app
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url_shortener?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: yourpassword
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQL8Dialect
+      APP_BASE_URL: http://localhost:8080/
     ports:
       - "8080:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    networks:
+      - app-network
 
-  adminer:
-    image: adminer
-    ports:
-      - "8081:8080"
-    restart: always
+# 🔹 Docker Network (shared between services)
+networks:
+  app-network:
+    driver: bridge
 
+# 🔹 Persistent MySQL Data Storage
 volumes:
-  mysql-data:
+  mysql_data:
