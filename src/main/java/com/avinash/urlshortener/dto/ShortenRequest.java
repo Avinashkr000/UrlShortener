@@ -25,4 +25,8 @@ public class ShortenRequest {
         }
         return LocalDateTime.now().plusDays(expiryInDays);
     }
+
+    public void getExpiryInDays(LocalDateTime localDateTime) {
+
+    }
 }
