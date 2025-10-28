@@ -1,11 +1,14 @@
 package com.avinash.urlshortener.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
-@Getter
-@AllArgsConstructor
 public class ShortenResponse {
-    private final String shortCode;
-    private final String shortUrl;
+    private String shortCode;
+    private String shortUrl;
+
+    public ShortenResponse(String shortCode, String shortUrl) {
+        this.shortCode = shortCode;
+        this.shortUrl = shortUrl;
+    }
+
+    public String getShortCode() { return shortCode; }
+    public String getShortUrl() { return shortUrl; }
 }
