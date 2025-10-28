@@ -110,6 +110,11 @@ public class UrlService {
         return urlRepository.deleteByExpiryAtBefore(now);
     }
 
+    public String getOriginalUrl(String shortCode) {
+        UrlEntity entity = findByShortCode(shortCode);
+        return entity.getLongUrl();
+    }
+
     // 🔹 Increment click count
     private void incrementClickCount(String shortCode) {
         urlRepository.incrementClicks(shortCode, LocalDateTime.now());
