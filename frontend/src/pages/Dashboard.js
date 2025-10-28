@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { Trash2, ExternalLink, Copy, Calendar, BarChart3, RefreshCw } from 'lucide-react';
 import copy from 'copy-to-clipboard';
-import { urlService } from '../services/api';
+import urlService from '../services/api';
 
 const Dashboard = () => {
   const [urls, setUrls] = useState([]);
@@ -26,22 +26,29 @@ const Dashboard = () => {
     }
   };
 
-  const handleDelete = async (shortCode) => {
-    if (!window.confirm('Are you sure you want to delete this URL?')) {
-      return;
-    }
+ const handleDelete = async (shortCode) => {
+   if (!window.confirm('Are you sure you want to delete this URL?')) {
+     return;
+   }
 
-    setDeleteLoading(prev => ({ ...prev, [shortCode]: true }));
-    try {
-      await urlService.deleteUrl(shortCode);
-      setUrls(urls.filter(url => !url.shortUrl.includes(shortCode)));
-      toast.success('URL deleted successfully! 🗑️');
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setDeleteLoading(prev => ({ ...prev, [shortCode]: false }));
-    }
-  };
+   setDeleteLoading((prev) => ({ ...prev, [shortCode]: true }));
+
+   try {
+     await urlService.deleteUrl(shortCode);
+
+     // ✅ Safe filter: avoid .includes() on undefined
+     setUrls((prev) =>
+       prev.filter((url) => url.shortUrl && !url.shortUrl.includes(shortCode))
+     );
+
+     toast.success('URL deleted successfully! 🗑️');
+   } catch (error) {
+     toast.error(error.message || 'Failed to delete URL');
+   } finally {
+     setDeleteLoading((prev) => ({ ...prev, [shortCode]: false }));
+   }
+ };
+
 
   const handleCopy = (url) => {
     if (copy(url)) {
@@ -89,7 +96,7 @@ const Dashboard = () => {
         <p className="text-xl text-gray-600 mb-6">
           Manage all your shortened URLs in one place
         </p>
-        
+
         <button
           onClick={fetchUrls}
           className="inline-flex items-center space-x-2 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
@@ -112,7 +119,7 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up" style={{animationDelay: '0.1s'}}>
           <div className="flex items-center justify-between">
             <div>
@@ -126,7 +133,7 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up" style={{animationDelay: '0.2s'}}>
           <div className="flex items-center justify-between">
             <div>
@@ -181,24 +188,28 @@ const Dashboard = () => {
                   </th>
                 </tr>
               </thead>
+
               <tbody className="bg-white divide-y divide-gray-200">
                 {urls.map((url, index) => {
-                  const shortCode = url.shortUrl.split('/').pop();
-                  const expired = isExpired(url.expiryDate);
-                  
+                  // ✅ Defensive checks to prevent crash
+                  const fullShortUrl = url.shortUrl || (url.shortCode ? `http://localhost:8080/${url.shortCode}` : 'N/A');
+                  const shortCode = url.shortUrl ? url.shortUrl.split('/').pop() : url.shortCode || '';
+                  const expired = isExpired(url.expiryAt || url.expiryDate);
+
                   return (
-                    <tr key={index} className={`hover:bg-gray-50 transition-colors ${
-                      expired ? 'bg-red-50' : ''
-                    }`}>
+                    <tr
+                      key={index}
+                      className={`hover:bg-gray-50 transition-colors ${expired ? 'bg-red-50' : ''}`}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <a
-                            href={url.originalUrl}
+                            href={url.longUrl || url.originalUrl || '#'}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1 max-w-xs truncate"
                           >
-                            <span className="truncate">{url.originalUrl}</span>
+                            <span className="truncate">{url.longUrl || url.originalUrl || 'N/A'}</span>
                             <ExternalLink className="h-3 w-3 flex-shrink-0" />
                           </a>
                         </div>
@@ -206,10 +217,10 @@ const Dashboard = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
                           <code className="text-sm bg-gray-100 px-2 py-1 rounded font-mono">
-                            {url.shortUrl}
+                            {fullShortUrl}
                           </code>
                           <button
-                            onClick={() => handleCopy(url.shortUrl)}
+                            onClick={() => handleCopy(fullShortUrl)}
                             className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                             title="Copy URL"
                           >
@@ -220,15 +231,15 @@ const Dashboard = () => {
                       <td className="px-6 py-4 text-sm text-gray-600">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-4 w-4" />
-                          <span>{formatDate(url.expiryDate)}</span>
+                          <span>{formatDate(url.expiryAt || url.expiryDate)}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          expired
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            expired ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                          }`}
+                        >
                           {expired ? 'Expired' : 'Active'}
                         </span>
                       </td>
@@ -251,6 +262,7 @@ const Dashboard = () => {
                   );
                 })}
               </tbody>
+
             </table>
           </div>
         </div>

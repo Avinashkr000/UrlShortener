@@ -10,13 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.*;
 
 @Service
@@ -24,7 +19,6 @@ import java.util.concurrent.*;
 public class UrlService {
 
     private final UrlRepository urlRepository;
-
     private final ConcurrentHashMap<String, CacheEntry> cache = new ConcurrentHashMap<>();
     private ScheduledExecutorService cleaner;
 
@@ -35,6 +29,7 @@ public class UrlService {
     private long defaultExpiryDays;
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final char[] BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray();
 
     @PostConstruct
     public void init() {
@@ -52,10 +47,12 @@ public class UrlService {
         if (cleaner != null) cleaner.shutdown();
     }
 
+    // 🔹 Create a new short URL
     public UrlEntity createShortUrl(UrlEntity entity) {
         if (entity.getExpiryAt() == null) {
             entity.setExpiryAt(LocalDateTime.now().plusDays(defaultExpiryDays));
         }
+
         String shortCode = generateShortCode();
         int safety = 0;
         while (urlRepository.existsByShortCode(shortCode) && safety++ < 50) {
@@ -64,90 +61,100 @@ public class UrlService {
         if (urlRepository.existsByShortCode(shortCode)) {
             throw new IllegalStateException("Unable to generate unique short code");
         }
+
         entity.setShortCode(shortCode);
         entity.setCreatedAt(LocalDateTime.now());
         if (entity.getClickCount() == null) entity.setClickCount(0L);
+
         UrlEntity saved = urlRepository.save(entity);
         cache.put(shortCode, new CacheEntry(saved.getLongUrl(), LocalDateTime.now().plusHours(ttlHours)));
         return saved;
     }
 
+    // 🔹 Delete URL safely (case-insensitive)
+    public boolean deleteByShortCode(String shortCode) {
+        return urlRepository.findByShortCodeIgnoreCase(shortCode)
+                .map(entity -> {
+                    urlRepository.delete(entity);
+                    cache.remove(shortCode);
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    // 🔹 Find by shortCode (with cache)
     public UrlEntity findByShortCode(String shortCode) {
         CacheEntry ce = cache.get(shortCode);
         if (ce != null && !ce.isExpired()) {
-            // Skip DB read here; increment click via update query
             incrementClickCount(shortCode);
-            return urlRepository.findByShortCode(shortCode)
+            return urlRepository.findByShortCodeIgnoreCase(shortCode)
                     .orElseThrow(() -> new NotFoundException("Short code not found: " + shortCode));
         }
-        return urlRepository.findByShortCode(shortCode).map(entity -> {
-            cache.put(shortCode, new CacheEntry(entity.getLongUrl(), LocalDateTime.now().plusHours(ttlHours)));
-            incrementClickCount(shortCode);
-            return entity;
-        }).orElseThrow(() -> new NotFoundException("Short code not found: " + shortCode));
+
+        return urlRepository.findByShortCodeIgnoreCase(shortCode)
+                .map(entity -> {
+                    cache.put(shortCode, new CacheEntry(entity.getLongUrl(), LocalDateTime.now().plusHours(ttlHours)));
+                    incrementClickCount(shortCode);
+                    return entity;
+                })
+                .orElseThrow(() -> new NotFoundException("Short code not found: " + shortCode));
     }
 
-    public String getOriginalUrl(String shortCode) {
-        return findByShortCode(shortCode).getLongUrl();
+    // 🔹 Get all URLs
+    public List<UrlEntity> findAll() {
+        return urlRepository.findAll();
     }
 
+    // 🔹 Cleanup expired URLs
     public int cleanupExpiredUrls(LocalDateTime now) {
         return urlRepository.deleteByExpiryAtBefore(now);
     }
 
-    public boolean deleteByShortCode(String code) {
-        Optional<UrlEntity> opt = urlRepository.findByShortCode(code);
-        if (opt.isEmpty()) return false;
-        urlRepository.delete(opt.get());
-        cache.remove(code);
-        return true;
-    }
-
-    public List<UrlEntity> findAll() {
-        List<UrlEntity> list = new ArrayList<>();
-        urlRepository.findAll().forEach(list::add);
-        return list;
-    }
-
+    // 🔹 Increment click count
     private void incrementClickCount(String shortCode) {
         urlRepository.incrementClicks(shortCode, LocalDateTime.now());
     }
 
+    // 🔹 Background cache cleanup
     private void cleanupCache() {
         LocalDateTime now = LocalDateTime.now();
-        for (Map.Entry<String, CacheEntry> e : cache.entrySet()) {
-            if (e.getValue().isExpiredAt(now)) {
-                cache.remove(e.getKey());
-            }
-        }
+        cache.entrySet().removeIf(e -> e.getValue().isExpiredAt(now));
     }
 
-    private static class CacheEntry {
-        final String value;
-        final LocalDateTime expiryAt;
-        CacheEntry(String v, LocalDateTime expiryAt) {
-            this.value = v; this.expiryAt = expiryAt;
-        }
-        boolean isExpired() { return isExpiredAt(LocalDateTime.now()); }
-        boolean isExpiredAt(LocalDateTime t) { return !expiryAt.isAfter(t); }
-    }
-
+    // 🔹 Helper classes & methods
     private String generateShortCode() {
         byte[] bytes = new byte[5]; // ~8 Base62 chars
         RANDOM.nextBytes(bytes);
         return toBase62(bytes).substring(0, 6);
     }
 
-    private static final char[] BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray();
     private String toBase62(byte[] input) {
         StringBuilder sb = new StringBuilder();
         long num = 0;
         for (byte b : input) num = (num << 8) | (b & 0xFF);
         while (num > 0) {
-            int idx = (int)(num % 62);
+            int idx = (int) (num % 62);
             sb.append(BASE62[idx]);
             num /= 62;
         }
         return sb.reverse().toString();
+    }
+
+    private static class CacheEntry {
+        final String value;
+        final LocalDateTime expiryAt;
+
+        CacheEntry(String v, LocalDateTime expiryAt) {
+            this.value = v;
+            this.expiryAt = expiryAt;
+        }
+
+        boolean isExpired() {
+            return isExpiredAt(LocalDateTime.now());
+        }
+
+        boolean isExpiredAt(LocalDateTime t) {
+            return !expiryAt.isAfter(t);
+        }
     }
 }

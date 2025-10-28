@@ -3,7 +3,8 @@ import { toast } from 'react-toastify';
 import { Link2, Copy, QrCode, Calendar, ExternalLink, Zap } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import copy from 'copy-to-clipboard';
-import { urlService } from '../services/api';
+import urlService from '../services/api';
+
 
 const Home = () => {
   const [originalUrl, setOriginalUrl] = useState('');
@@ -14,7 +15,7 @@ const Home = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!originalUrl.trim()) {
       toast.error('Please enter a valid URL');
       return;
@@ -156,7 +157,7 @@ const Home = () => {
                   <ExternalLink className="h-4 w-4 flex-shrink-0" />
                 </a>
               </div>
-              
+
               {/* Action Buttons */}
               <div className="flex items-center space-x-3">
                 <button
@@ -166,7 +167,7 @@ const Home = () => {
                   <Copy className="h-4 w-4" />
                   <span>Copy</span>
                 </button>
-                
+
                 <button
                   onClick={() => setShowQR(!showQR)}
                   className="flex items-center space-x-2 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
@@ -209,7 +210,7 @@ const Home = () => {
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Lightning Fast</h3>
           <p className="text-gray-600">Generate short URLs instantly with our optimized backend</p>
         </div>
-        
+
         <div className="text-center p-6 bg-white rounded-xl shadow-lg hover-scale">
           <div className="inline-flex items-center justify-center p-3 bg-purple-100 rounded-full mb-4">
             <QrCode className="h-6 w-6 text-purple-600" />
@@ -217,7 +218,7 @@ const Home = () => {
           <h3 className="text-lg font-semibold text-gray-800 mb-2">QR Codes</h3>
           <p className="text-gray-600">Generate QR codes for easy mobile sharing</p>
         </div>
-        
+
         <div className="text-center p-6 bg-white rounded-xl shadow-lg hover-scale">
           <div className="inline-flex items-center justify-center p-3 bg-green-100 rounded-full mb-4">
             <Calendar className="h-6 w-6 text-green-600" />

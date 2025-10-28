@@ -12,7 +12,7 @@ import java.util.Optional;
 
 public interface UrlRepository extends JpaRepository<UrlEntity, Long> {
 
-    Optional<UrlEntity> findByShortCode(String shortCode);
+    Optional<UrlEntity> findByShortCodeIgnoreCase(String shortCode); // ✅ ignore case
 
     boolean existsByShortCode(String shortCode);
 
@@ -20,6 +20,6 @@ public interface UrlRepository extends JpaRepository<UrlEntity, Long> {
 
     @Modifying
     @Transactional
-    @Query("update UrlEntity u set u.clickCount = coalesce(u.clickCount,0) + 1, u.lastClickedAt = :now where u.shortCode = :code")
+    @Query("UPDATE UrlEntity u SET u.clickCount = COALESCE(u.clickCount, 0) + 1, u.lastClickedAt = :now WHERE LOWER(u.shortCode) = LOWER(:code)")
     int incrementClicks(@Param("code") String code, @Param("now") LocalDateTime now);
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { BarChart3, TrendingUp, Globe, Calendar, RefreshCw, AlertCircle } from 'lucide-react';
-import { urlService } from '../services/api';
+import urlService from '../services/api';
+
 
 const Analytics = () => {
   const [urls, setUrls] = useState([]);
@@ -54,7 +55,7 @@ const Analytics = () => {
     const active = urls.filter(url => !isExpired(url.expiryDate)).length;
     const expired = urls.filter(url => isExpired(url.expiryDate)).length;
     const withExpiry = urls.filter(url => url.expiryDate).length;
-    
+
     return { total, active, expired, withExpiry };
   };
 
@@ -82,7 +83,7 @@ const Analytics = () => {
         <p className="text-xl text-gray-600 mb-6">
           Insights and statistics for your URL shortening service
         </p>
-        
+
         <div className="flex justify-center space-x-4">
           <button
             onClick={fetchData}
@@ -91,7 +92,7 @@ const Analytics = () => {
             <RefreshCw className="h-4 w-4" />
             <span>Refresh Data</span>
           </button>
-          
+
           <button
             onClick={checkHealth}
             className="inline-flex items-center space-x-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors"
@@ -124,8 +125,8 @@ const Analytics = () => {
                     Service Status: {healthStatus.status}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {healthStatus.status === 'UP' 
-                      ? 'All systems operational' 
+                    {healthStatus.status === 'UP'
+                      ? 'All systems operational'
                       : 'Service experiencing issues'
                     }
                   </p>
@@ -160,7 +161,7 @@ const Analytics = () => {
             <span className="text-sm text-green-600">URLs created</span>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up" style={{animationDelay: '0.1s'}}>
           <div className="flex items-center justify-between">
             <div>
@@ -177,7 +178,7 @@ const Analytics = () => {
             </span>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up" style={{animationDelay: '0.2s'}}>
           <div className="flex items-center justify-between">
             <div>
@@ -194,7 +195,7 @@ const Analytics = () => {
             </span>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up" style={{animationDelay: '0.3s'}}>
           <div className="flex items-center justify-between">
             <div>
@@ -219,7 +220,7 @@ const Analytics = () => {
           <h2 className="text-xl font-semibold text-gray-800">Recent URLs</h2>
           <span className="text-sm text-gray-500">{urls.length} total URLs</span>
         </div>
-        
+
         {urls.length === 0 ? (
           <div className="text-center py-12">
             <div className="inline-flex items-center justify-center p-4 bg-gray-100 rounded-full mb-4">
@@ -232,7 +233,7 @@ const Analytics = () => {
           <div className="space-y-4">
             {urls.slice(0, 10).map((url, index) => {
               const expired = isExpired(url.expiryDate);
-              
+
               return (
                 <div key={index} className={`flex items-center justify-between p-4 rounded-lg border ${
                   expired ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50'
@@ -245,7 +246,7 @@ const Analytics = () => {
                       Short: {url.shortUrl}
                     </p>
                   </div>
-                  
+
                   <div className="flex items-center space-x-4 ml-4">
                     <div className="text-right">
                       <p className="text-xs text-gray-500">Expires</p>
@@ -253,7 +254,7 @@ const Analytics = () => {
                         {formatDate(url.expiryDate)}
                       </p>
                     </div>
-                    
+
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       expired
                         ? 'bg-red-100 text-red-800'

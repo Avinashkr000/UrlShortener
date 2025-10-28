@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Create axios instance with base configuration
+// ✅ Create axios instance
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8080',
   timeout: 10000,
@@ -9,7 +9,7 @@ const api = axios.create({
   },
 });
 
-// Request interceptor
+// ✅ Request interceptor
 api.interceptors.request.use(
   (config) => {
     console.log('🚀 API Request:', config.method?.toUpperCase(), config.url);
@@ -21,7 +21,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// ✅ Response interceptor
 api.interceptors.response.use(
   (response) => {
     console.log('✅ API Response:', response.status, response.config.url);
@@ -33,14 +33,14 @@ api.interceptors.response.use(
   }
 );
 
-// API functions
-export const urlService = {
-  // Shorten URL
+// ✅ API Functions
+const urlService = {
+  // 🔹 Shorten URL
   shortenUrl: async (originalUrl, expiryDate = null) => {
     try {
       const payload = {
-        originalUrl,
-        ...(expiryDate && { expiryDate })
+        longUrl: originalUrl,     // ✅ Fixed variable name
+        expiryAt: expiryDate,     // ✅ Backend DTO match
       };
       const response = await api.post('/api/shorten', payload);
       return response.data;
@@ -49,7 +49,7 @@ export const urlService = {
     }
   },
 
-  // Get all URLs
+  // 🔹 Get All URLs
   getAllUrls: async () => {
     try {
       const response = await api.get('/api/all');
@@ -59,7 +59,7 @@ export const urlService = {
     }
   },
 
-  // Delete URL
+  // 🔹 Delete URL
   deleteUrl: async (shortCode) => {
     try {
       const response = await api.delete(`/api/${shortCode}`);
@@ -69,7 +69,7 @@ export const urlService = {
     }
   },
 
-  // Get redirect (for analytics)
+  // 🔹 Get Redirect (analytics)
   getRedirect: async (shortCode) => {
     try {
       const response = await api.get(`/${shortCode}`);
@@ -79,7 +79,7 @@ export const urlService = {
     }
   },
 
-  // Health check
+  // 🔹 Health Check
   healthCheck: async () => {
     try {
       const response = await api.get('/actuator/health');
@@ -87,7 +87,8 @@ export const urlService = {
     } catch (error) {
       throw new Error('Service unavailable');
     }
-  }
+  },
 };
 
-export default api;
+// ✅ Export the service (no curly braces in import)
+export default urlService;

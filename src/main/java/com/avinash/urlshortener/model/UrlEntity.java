@@ -37,4 +37,7 @@ public class UrlEntity {
 
     @Column(name = "last_clicked_at")
     private LocalDateTime lastClickedAt;
+
+    public void setShortUrl(String fullShortUrl) {
+    }
 }

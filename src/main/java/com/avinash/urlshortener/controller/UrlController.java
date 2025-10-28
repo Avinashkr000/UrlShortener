@@ -24,26 +24,43 @@ public class UrlController {
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
+    // 🔹 Create short URL
     @PostMapping("/shorten")
     public ResponseEntity<ShortenResponse> shortenUrl(@Valid @RequestBody ShortenRequest req) {
         UrlEntity entity = new UrlEntity();
         entity.setLongUrl(req.getLongUrl());
         entity.setExpiryAt(req.getExpiryAt());
+
         UrlEntity saved = urlService.createShortUrl(entity);
-        String shortUrl = baseUrl.endsWith("/") ? baseUrl + saved.getShortCode() : baseUrl + "/" + saved.getShortCode();
+
+        String shortUrl = baseUrl.endsWith("/")
+                ? baseUrl + saved.getShortCode()
+                : baseUrl + "/" + saved.getShortCode();
+
         return ResponseEntity.created(URI.create(shortUrl))
                 .body(new ShortenResponse(saved.getShortCode(), shortUrl));
     }
 
+    // 🔹 Get all URLs (with full short URL dynamically)
     @GetMapping("/all")
     public List<UrlEntity> findAll() {
-        return urlService.findAll();
+        List<UrlEntity> urls = urlService.findAll();
+        urls.forEach(url -> {
+            String fullShortUrl = baseUrl.endsWith("/")
+                    ? baseUrl + url.getShortCode()
+                    : baseUrl + "/" + url.getShortCode();
+            url.setShortUrl(fullShortUrl);
+        });
+        return urls;
     }
 
+    // 🔹 Delete URL by shortCode (case-insensitive)
     @DeleteMapping("/{shortCode}")
     public ResponseEntity<Void> delete(@PathVariable String shortCode) {
-        boolean removed = urlService.deleteByShortCode(shortCode);
-        if (!removed) throw new NotFoundException("Short code not found: " + shortCode);
+        boolean removed = urlService.deleteByShortCode(shortCode.trim());
+        if (!removed) {
+            throw new NotFoundException("Short code not found: " + shortCode);
+        }
         return ResponseEntity.noContent().build();
     }
 }
