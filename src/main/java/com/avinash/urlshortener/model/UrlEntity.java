@@ -40,4 +40,6 @@ public class UrlEntity {
 
     public void setShortUrl(String fullShortUrl) {
     }
+
+
 }

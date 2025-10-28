@@ -5,12 +5,16 @@ import com.avinash.urlshortener.dto.ShortenResponse;
 import com.avinash.urlshortener.exception.NotFoundException;
 import com.avinash.urlshortener.model.UrlEntity;
 import com.avinash.urlshortener.service.UrlService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 
@@ -23,6 +27,16 @@ public class UrlController {
 
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
+    @GetMapping("/{code}")
+    public void redirect(@PathVariable("code") String code, HttpServletResponse response) throws IOException {
+        try {
+            String original = urlService.findByShortCode(code).getLongUrl();
+            response.setStatus(HttpServletResponse.SC_FOUND); // 302
+            response.setHeader("Location", original);
+        } catch (RuntimeException ex) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Short URL not found");
+        }
+    }
 
     // 🔹 Create short URL
     @PostMapping("/shorten")
