@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-// ✅ Create axios instance
+// ✅ Create axios instance with production backend URL
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8080',
-  timeout: 10000,
+  baseURL: process.env.REACT_APP_API_URL || 'https://url-shortener-backend-k0pv.onrender.com',
+  timeout: 30000, // Increased timeout for Render free tier spin-up
   headers: {
     'Content-Type': 'application/json',
   },
@@ -29,6 +29,12 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('❌ API Response Error:', error.response?.status, error.message);
+    
+    // Handle common Render.com issues
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      throw new Error('Server is starting up, please try again in a moment...');
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -39,13 +45,13 @@ const urlService = {
   shortenUrl: async (originalUrl, expiryDate = null) => {
     try {
       const payload = {
-        longUrl: originalUrl,     // ✅ Fixed variable name
+        longUrl: originalUrl,     // ✅ Backend DTO match
         expiryAt: expiryDate,     // ✅ Backend DTO match
       };
       const response = await api.post('/api/shorten', payload);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to shorten URL');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to shorten URL');
     }
   },
 
@@ -55,7 +61,7 @@ const urlService = {
       const response = await api.get('/api/all');
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch URLs');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to fetch URLs');
     }
   },
 
@@ -65,17 +71,27 @@ const urlService = {
       const response = await api.delete(`/api/${shortCode}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to delete URL');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to delete URL');
     }
   },
 
-  // 🔹 Get Redirect (analytics)
+  // 🔹 Get URL Analytics
+  getUrlAnalytics: async (shortCode) => {
+    try {
+      const response = await api.get(`/api/analytics/${shortCode}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.message || 'Failed to fetch analytics');
+    }
+  },
+
+  // 🔹 Get Redirect (for direct access)
   getRedirect: async (shortCode) => {
     try {
       const response = await api.get(`/${shortCode}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'URL not found');
+      throw new Error(error.response?.data?.message || error.message || 'URL not found');
     }
   },
 
@@ -85,10 +101,10 @@ const urlService = {
       const response = await api.get('/actuator/health');
       return response.data;
     } catch (error) {
-      throw new Error('Service unavailable');
+      throw new Error('Backend service unavailable');
     }
   },
 };
 
-// ✅ Export the service (no curly braces in import)
+// ✅ Export the service
 export default urlService;
