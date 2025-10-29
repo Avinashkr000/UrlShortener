@@ -1,234 +1,209 @@
-import React, { useState } from 'react';
-import { toast } from 'react-toastify';
-import { Link2, Copy, QrCode, Calendar, ExternalLink, Zap } from 'lucide-react';
-import QRCode from 'react-qr-code';
-import copy from 'copy-to-clipboard';
-import urlService from '../services/api';
+// javascript
+import React, { useState } from "react";
+import { toast } from "react-toastify";
+import { Link2, Copy, QrCode, Calendar, ExternalLink, Zap } from "lucide-react";
+import QRCode from "react-qr-code";
+import copy from "copy-to-clipboard";
+import { shortenUrl } from "../services/api";
 
-
-const Home = () => {
-  const [originalUrl, setOriginalUrl] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [shortenedUrl, setShortenedUrl] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+export default function Home() {
+  const [url, setUrl] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [shortUrl, setShortUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [showQR, setShowQR] = useState(false);
+
+  const buildFinalShort = (result) => {
+    // Accept multiple API shapes: string, { shortUrl }, { shortCode }
+    if (!result) return "";
+    if (typeof result === "string") {
+      return result;
+    }
+    if (result.shortUrl) {
+      return result.shortUrl;
+    }
+    if (result.shortCode) {
+      // use same origin if backend returns only code
+      const origin = window.location.origin || "https://url-shortener-backend-k0pv.onrender.com";
+      return `${origin.replace(/\/$/, "")}/${result.shortCode}`;
+    }
+    return "";
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setShortUrl("");
+    setShowQR(false);
 
-    if (!originalUrl.trim()) {
-      toast.error('Please enter a valid URL');
+    if (!url || !url.trim()) {
+      setError("Please enter a URL.");
       return;
     }
 
-    // Basic URL validation
+    // Basic client-side URL validation
     try {
-      new URL(originalUrl);
+      // allow URLs like "http(s)://..." only
+      const parsed = new URL(url);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        throw new Error("Invalid protocol");
+      }
     } catch {
-      toast.error('Please enter a valid URL (include http:// or https://)');
+      setError("Please enter a valid URL (include http:// or https://).");
       return;
     }
 
-    setIsLoading(true);
+    // Validate expiry if provided
+    if (expiry) {
+      const ts = Date.parse(expiry);
+      if (Number.isNaN(ts)) {
+        setError("Expiry date is invalid.");
+        return;
+      }
+      if (ts <= Date.now()) {
+        setError("Expiry must be a future date/time.");
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
-      const result = await urlService.shortenUrl(originalUrl, expiryDate || null);
-      setShortenedUrl(result.shortUrl);
-      toast.success('URL shortened successfully! 🎉');
-    } catch (error) {
-      toast.error(error.message);
+      // call API; accept that shortenUrl may accept (url, expiry) or (url)
+      const result = await shortenUrl(url, expiry || null);
+      const final = buildFinalShort(result);
+      if (!final) {
+        throw new Error("Unexpected API response");
+      }
+      setShortUrl(final);
+      setUrl("");
+      setExpiry("");
+      toast.success("URL shortened successfully! ✅");
+    } catch (err) {
+      console.error(err);
+      const message = err?.message || "Failed to shorten URL. Please try again!";
+      setError(`⚠️ ${message}`);
+      toast.error(message);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const handleCopy = () => {
-    if (copy(shortenedUrl)) {
-      toast.success('Copied to clipboard! 📋');
+    if (!shortUrl) return;
+    if (copy(shortUrl)) {
+      toast.success("Copied to clipboard! 📋");
     } else {
-      toast.error('Failed to copy');
+      toast.error("Failed to copy");
     }
   };
 
   const handleReset = () => {
-    setOriginalUrl('');
-    setExpiryDate('');
-    setShortenedUrl('');
+    setUrl("");
+    setExpiry("");
+    setShortUrl("");
+    setError("");
     setShowQR(false);
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Hero Section */}
-      <div className="text-center mb-12 animate-fade-in">
-        <div className="inline-flex items-center justify-center p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mb-6">
-          <Zap className="h-8 w-8 text-white" />
-        </div>
-        <h1 className="text-4xl md:text-6xl font-bold gradient-text mb-4">
-          Shorten Your URLs
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+      <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md text-center">
+        <h1 className="text-3xl font-bold text-blue-600 mb-6">
+          <span role="img" aria-label="link">🔗</span> URL Shortener
         </h1>
-        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          Transform long, complex URLs into short, shareable links with advanced analytics and QR codes.
-        </p>
-      </div>
 
-      {/* URL Shortener Form */}
-      <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 glass-effect animate-slide-up">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* URL Input */}
-          <div>
-            <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-2">
-              Enter your long URL
-            </label>
-            <div className="relative">
-              <Link2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="url"
-                id="url"
-                value={originalUrl}
-                onChange={(e) => setOriginalUrl(e.target.value)}
-                placeholder="https://example.com/very-long-url-that-needs-shortening"
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                required
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="relative">
+            <Link2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="url"
+              required
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com/very-long-url"
+              className="w-full px-4 py-2 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
           </div>
 
-          {/* Expiry Date */}
-          <div>
-            <label htmlFor="expiry" className="block text-sm font-medium text-gray-700 mb-2">
-              Expiry Date (Optional)
-            </label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="datetime-local"
-                id="expiry"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              />
-            </div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="datetime-local"
+              value={expiry}
+              onChange={(e) => setExpiry(e.target.value)}
+              className="w-full px-4 py-2 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              aria-label="Expiry date (optional)"
+            />
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:shadow-lg transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-          >
-            {isLoading ? (
-              <>
-                <div className="loading-spinner"></div>
-                <span>Shortening...</span>
-              </>
-            ) : (
-              <>
-                <Zap className="h-5 w-5" />
-                <span>Shorten URL</span>
-              </>
-            )}
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
+            >
+              {loading ? "Shortening..." : "Shorten URL"}
+            </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+            >
+              Reset
+            </button>
+          </div>
         </form>
-      </div>
 
-      {/* Result Section */}
-      {shortenedUrl && (
-        <div className="bg-white rounded-2xl shadow-xl p-8 animate-bounce-in">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center p-3 bg-green-100 rounded-full mb-4">
-              <Link2 className="h-6 w-6 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">URL Shortened Successfully!</h2>
-            <p className="text-gray-600">Your new short URL is ready to use</p>
-          </div>
+        {error && <p className="text-red-500 mt-3">{error}</p>}
 
-          {/* Shortened URL Display */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-500 mb-1">Shortened URL:</p>
-                <a
-                  href={shortenedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 font-mono text-lg break-all hover:underline flex items-center gap-1"
-                >
-                  {shortenedUrl}
-                  <ExternalLink className="h-4 w-4 flex-shrink-0" />
-                </a>
-              </div>
+        {shortUrl && (
+          <div className="mt-6 text-left">
+            <p className="text-gray-600 mb-1">✅ Your short link:</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <a
+                href={shortUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 font-semibold break-all hover:underline"
+              >
+                {shortUrl}
+              </a>
 
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-2 ml-auto">
                 <button
                   onClick={handleCopy}
-                  className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                  className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition"
                 >
                   <Copy className="h-4 w-4" />
                   <span>Copy</span>
                 </button>
 
                 <button
-                  onClick={() => setShowQR(!showQR)}
-                  className="flex items-center space-x-2 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
+                  onClick={() => setShowQR((s) => !s)}
+                  className="flex items-center gap-2 bg-purple-500 text-white px-3 py-1 rounded-lg hover:bg-purple-600 transition"
                 >
                   <QrCode className="h-4 w-4" />
-                  <span>QR Code</span>
+                  <span>QR</span>
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* QR Code */}
-          {showQR && (
-            <div className="text-center animate-fade-in">
-              <div className="inline-block p-4 bg-white rounded-lg shadow-lg">
-                <QRCode value={shortenedUrl} size={200} />
+            {showQR && (
+              <div className="mt-4 text-center">
+                <div className="inline-block p-4 bg-white rounded-lg shadow-lg">
+                  <QRCode value={shortUrl} size={160} />
+                </div>
+                <p className="text-sm text-gray-500 mt-2">Scan to open the shortened URL</p>
               </div>
-              <p className="text-sm text-gray-500 mt-2">Scan to open the shortened URL</p>
-            </div>
-          )}
-
-          {/* Reset Button */}
-          <div className="text-center mt-6">
-            <button
-              onClick={handleReset}
-              className="text-gray-500 hover:text-gray-700 font-medium transition-colors"
-            >
-              Shorten Another URL
-            </button>
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Features Section */}
-      <div className="grid md:grid-cols-3 gap-8 mt-16">
-        <div className="text-center p-6 bg-white rounded-xl shadow-lg hover-scale">
-          <div className="inline-flex items-center justify-center p-3 bg-blue-100 rounded-full mb-4">
-            <Zap className="h-6 w-6 text-blue-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Lightning Fast</h3>
-          <p className="text-gray-600">Generate short URLs instantly with our optimized backend</p>
-        </div>
-
-        <div className="text-center p-6 bg-white rounded-xl shadow-lg hover-scale">
-          <div className="inline-flex items-center justify-center p-3 bg-purple-100 rounded-full mb-4">
-            <QrCode className="h-6 w-6 text-purple-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">QR Codes</h3>
-          <p className="text-gray-600">Generate QR codes for easy mobile sharing</p>
-        </div>
-
-        <div className="text-center p-6 bg-white rounded-xl shadow-lg hover-scale">
-          <div className="inline-flex items-center justify-center p-3 bg-green-100 rounded-full mb-4">
-            <Calendar className="h-6 w-6 text-green-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Expiry Dates</h3>
-          <p className="text-gray-600">Set custom expiration dates for your links</p>
-        </div>
+        )}
       </div>
+
+      <p className="mt-6 text-gray-500 text-sm">
+        Made with <span aria-hidden>❤️</span> by <span className="text-blue-600 font-semibold">Avinash</span>
+      </p>
     </div>
   );
-};
-
-export default Home;
+}

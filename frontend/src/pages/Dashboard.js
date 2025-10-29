@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { Trash2, ExternalLink, Copy, Calendar, BarChart3, RefreshCw } from 'lucide-react';
 import copy from 'copy-to-clipboard';
-import urlService from '../services/api';
+import urlService from '../services/api'; // ensure api.js updated (below)
 
 const Dashboard = () => {
   const [urls, setUrls] = useState([]);
@@ -13,59 +13,57 @@ const Dashboard = () => {
     fetchUrls();
   }, []);
 
+  // ✅ Fetch all URLs from backend
   const fetchUrls = async () => {
     setIsLoading(true);
     try {
       const data = await urlService.getAllUrls();
       setUrls(Array.isArray(data) ? data : []);
     } catch (error) {
-      toast.error(error.message);
+      toast.error('Failed to fetch URLs 😔');
+      console.error(error);
       setUrls([]);
     } finally {
       setIsLoading(false);
     }
   };
 
- const handleDelete = async (shortCode) => {
-   if (!window.confirm('Are you sure you want to delete this URL?')) {
-     return;
-   }
+  // ✅ Delete short URL from backend
+  const handleDelete = async (shortCode) => {
+    if (!window.confirm('Are you sure you want to delete this URL?')) return;
 
-   setDeleteLoading((prev) => ({ ...prev, [shortCode]: true }));
-
-   try {
-     await urlService.deleteUrl(shortCode);
-
-     // ✅ Safe filter: avoid .includes() on undefined
-     setUrls((prev) =>
-       prev.filter((url) => url.shortUrl && !url.shortUrl.includes(shortCode))
-     );
-
-     toast.success('URL deleted successfully! 🗑️');
-   } catch (error) {
-     toast.error(error.message || 'Failed to delete URL');
-   } finally {
-     setDeleteLoading((prev) => ({ ...prev, [shortCode]: false }));
-   }
- };
-
-
-  const handleCopy = (url) => {
-    if (copy(url)) {
-      toast.success('Copied to clipboard! 📋');
-    } else {
-      toast.error('Failed to copy');
+    setDeleteLoading((prev) => ({ ...prev, [shortCode]: true }));
+    try {
+      const res = await urlService.deleteUrl(shortCode);
+      if (res?.status === 200 || res?.success) {
+        setUrls((prev) => prev.filter((u) => u.shortCode !== shortCode));
+        toast.success('URL deleted successfully 🗑️');
+      } else {
+        toast.error('Delete failed');
+      }
+    } catch (err) {
+      toast.error('Error deleting URL');
+      console.error(err);
+    } finally {
+      setDeleteLoading((prev) => ({ ...prev, [shortCode]: false }));
     }
   };
 
+  // ✅ Copy short URL
+  const handleCopy = (url) => {
+    if (copy(url)) toast.success('Copied to clipboard! 📋');
+    else toast.error('Failed to copy');
+  };
+
+  // ✅ Expiry helpers
   const formatDate = (dateString) => {
     if (!dateString) return 'No expiry';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleString('en-IN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -74,6 +72,7 @@ const Dashboard = () => {
     return new Date(dateString) < new Date();
   };
 
+  // ✅ Loading state
   if (isLoading) {
     return (
       <div className="max-w-6xl mx-auto">
@@ -85,6 +84,7 @@ const Dashboard = () => {
     );
   }
 
+  // ✅ UI (design untouched)
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header */}
@@ -96,7 +96,6 @@ const Dashboard = () => {
         <p className="text-xl text-gray-600 mb-6">
           Manage all your shortened URLs in one place
         </p>
-
         <button
           onClick={fetchUrls}
           className="inline-flex items-center space-x-2 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
@@ -106,7 +105,7 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up">
           <div className="flex items-center justify-between">
@@ -120,12 +119,12 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up" style={{animationDelay: '0.1s'}}>
+        <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Active URLs</p>
               <p className="text-2xl font-bold text-green-600">
-                {urls.filter(url => !isExpired(url.expiryDate)).length}
+                {urls.filter((url) => !isExpired(url.expiryAt)).length}
               </p>
             </div>
             <div className="p-3 bg-green-100 rounded-full">
@@ -134,12 +133,12 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up" style={{animationDelay: '0.2s'}}>
+        <div className="bg-white rounded-xl shadow-lg p-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Expired URLs</p>
               <p className="text-2xl font-bold text-red-600">
-                {urls.filter(url => isExpired(url.expiryDate)).length}
+                {urls.filter((url) => isExpired(url.expiryAt)).length}
               </p>
             </div>
             <div className="p-3 bg-red-100 rounded-full">
@@ -149,7 +148,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* URLs Table */}
+      {/* Table */}
       {urls.length === 0 ? (
         <div className="bg-white rounded-xl shadow-lg p-12 text-center animate-fade-in">
           <div className="inline-flex items-center justify-center p-4 bg-gray-100 rounded-full mb-4">
@@ -171,48 +170,30 @@ const Dashboard = () => {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Original URL
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Short URL
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Expiry Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Original URL</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Short URL</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Expiry Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
 
               <tbody className="bg-white divide-y divide-gray-200">
-                {urls.map((url, index) => {
-                  // ✅ Defensive checks to prevent crash
-                  const fullShortUrl = url.shortUrl || (url.shortCode ? `http://localhost:8080/${url.shortCode}` : 'N/A');
-                  const shortCode = url.shortUrl ? url.shortUrl.split('/').pop() : url.shortCode || '';
-                  const expired = isExpired(url.expiryAt || url.expiryDate);
+                {urls.map((url) => {
+                  const fullShortUrl = `${process.env.REACT_APP_API_BASE_URL?.replace("/api", "")}/${url.shortCode}`;
+                  const expired = isExpired(url.expiryAt);
 
                   return (
-                    <tr
-                      key={index}
-                      className={`hover:bg-gray-50 transition-colors ${expired ? 'bg-red-50' : ''}`}
-                    >
+                    <tr key={url.id} className={`hover:bg-gray-50 ${expired ? 'bg-red-50' : ''}`}>
                       <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <a
-                            href={url.longUrl || url.originalUrl || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1 max-w-xs truncate"
-                          >
-                            <span className="truncate">{url.longUrl || url.originalUrl || 'N/A'}</span>
-                            <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                          </a>
-                        </div>
+                        <a
+                          href={url.longUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline truncate max-w-xs inline-block"
+                        >
+                          {url.longUrl}
+                        </a>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
@@ -221,22 +202,20 @@ const Dashboard = () => {
                           </code>
                           <button
                             onClick={() => handleCopy(fullShortUrl)}
-                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                            className="p-1 text-gray-400 hover:text-blue-600"
                             title="Copy URL"
                           >
                             <Copy className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>{formatDate(url.expiryAt || url.expiryDate)}</span>
-                        </div>
+                      <td className="px-6 py-4 text-sm text-gray-600 flex items-center space-x-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>{formatDate(url.expiryAt)}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             expired ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                           }`}
                         >
@@ -245,13 +224,12 @@ const Dashboard = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => handleDelete(shortCode)}
-                          disabled={deleteLoading[shortCode]}
-                          className="inline-flex items-center space-x-1 text-red-600 hover:text-red-800 transition-colors disabled:opacity-50"
-                          title="Delete URL"
+                          onClick={() => handleDelete(url.shortCode)}
+                          disabled={deleteLoading[url.shortCode]}
+                          className="inline-flex items-center space-x-1 text-red-600 hover:text-red-800 disabled:opacity-50"
                         >
-                          {deleteLoading[shortCode] ? (
-                            <div className="loading-spinner"></div>
+                          {deleteLoading[url.shortCode] ? (
+                            <div className="loading-spinner" />
                           ) : (
                             <Trash2 className="h-4 w-4" />
                           )}
