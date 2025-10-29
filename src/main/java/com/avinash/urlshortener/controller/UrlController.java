@@ -11,6 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "*") // ✅ allow all frontend origins
 @RequiredArgsConstructor
 public class UrlController {
 
@@ -19,14 +20,14 @@ public class UrlController {
     // 🔹 Create a new short URL
     @PostMapping("/shorten")
     public ResponseEntity<UrlEntity> shortenUrl(@RequestBody Map<String, String> request) {
-        String originalUrl = request.get("originalUrl"); // ✅ matches Postman JSON key
+        String originalUrl = request.get("originalUrl"); // ✅ matches frontend JSON key
 
         if (originalUrl == null || originalUrl.isBlank()) {
             throw new IllegalArgumentException("Original URL cannot be empty");
         }
 
         UrlEntity entity = new UrlEntity();
-        entity.setLongUrl(originalUrl); // ✅ FIX: set long URL before saving
+        entity.setLongUrl(originalUrl); // ✅ set long URL before saving
 
         UrlEntity saved = urlService.createShortUrl(entity);
         return ResponseEntity.ok(saved);
@@ -49,7 +50,10 @@ public class UrlController {
     @DeleteMapping("/{shortCode}")
     public ResponseEntity<String> deleteUrl(@PathVariable String shortCode) {
         boolean deleted = urlService.deleteByShortCode(shortCode);
-        if (deleted) return ResponseEntity.ok("Deleted successfully");
-        else return ResponseEntity.badRequest().body("Short code not found");
+        if (deleted) {
+            return ResponseEntity.ok("Deleted successfully");
+        } else {
+            return ResponseEntity.badRequest().body("Short code not found");
+        }
     }
 }

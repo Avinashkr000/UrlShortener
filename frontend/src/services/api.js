@@ -4,7 +4,7 @@ import axios from "axios";
 const api = axios.create({
   baseURL:
     process.env.REACT_APP_API_BASE_URL ||
-    "https://url-shortener-backend-k0pv.onrender.com/api", // fallback if env not set
+    "https://url-shortener-backend-k0pv.onrender.com/api", // fallback
   headers: { "Content-Type": "application/json" },
 });
 
@@ -42,8 +42,8 @@ const urlService = {
   shortenUrl: async (originalUrl, expiryDate = null) => {
     try {
       const payload = {
-        longUrl: originalUrl, // backend expects this
-        expiryAt: expiryDate, // optional expiry
+        originalUrl: originalUrl, // ✅ matches backend
+        expiryAt: expiryDate, // optional
       };
       const response = await api.post("/shorten", payload);
       return response.data;
@@ -68,7 +68,7 @@ const urlService = {
   // 🔹 Delete URL by short code
   deleteUrl: async (shortCode) => {
     try {
-      const response = await api.delete(`/delete/${shortCode}`);
+      const response = await api.delete(`/${shortCode}`); // ✅ backend expects this
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || "Failed to delete URL");
@@ -85,10 +85,9 @@ const urlService = {
     }
   },
 
-  // 🔹 Health Check (for status badge)
+  // 🔹 Health Check (status badge)
   healthCheck: async () => {
     try {
-      // ✅ if backend uses Spring Boot actuator or simple /health endpoint
       const response = await api.get("/actuator/health").catch(() =>
         api.get("/health") // fallback
       );
@@ -99,5 +98,5 @@ const urlService = {
   },
 };
 
-// ✅ Export single instance (default)
+// ✅ Export single instance
 export default urlService;
