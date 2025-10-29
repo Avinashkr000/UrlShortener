@@ -49,19 +49,15 @@ public class UrlService {
 
     // 🔹 Create a new short URL
     public UrlEntity createShortUrl(UrlEntity entity) {
+        if (entity.getLongUrl() == null || entity.getLongUrl().isBlank()) {
+            throw new IllegalArgumentException("Long URL cannot be null or empty");
+        }
+
         if (entity.getExpiryAt() == null) {
             entity.setExpiryAt(LocalDateTime.now().plusDays(defaultExpiryDays));
         }
 
-        String shortCode = generateShortCode();
-        int safety = 0;
-        while (urlRepository.existsByShortCode(shortCode) && safety++ < 50) {
-            shortCode = generateShortCode();
-        }
-        if (urlRepository.existsByShortCode(shortCode)) {
-            throw new IllegalStateException("Unable to generate unique short code");
-        }
-
+        String shortCode = generateUniqueShortCode();
         entity.setShortCode(shortCode);
         entity.setCreatedAt(LocalDateTime.now());
         if (entity.getClickCount() == null) entity.setClickCount(0L);
@@ -100,6 +96,12 @@ public class UrlService {
                 .orElseThrow(() -> new NotFoundException("Short code not found: " + shortCode));
     }
 
+    // 🔹 Get original URL
+    public String getOriginalUrl(String shortCode) {
+        UrlEntity entity = findByShortCode(shortCode);
+        return entity.getLongUrl();
+    }
+
     // 🔹 Get all URLs
     public List<UrlEntity> findAll() {
         return urlRepository.findAll();
@@ -110,25 +112,29 @@ public class UrlService {
         return urlRepository.deleteByExpiryAtBefore(now);
     }
 
-    public String getOriginalUrl(String shortCode) {
-        UrlEntity entity = findByShortCode(shortCode);
-        return entity.getLongUrl();
-    }
-
     // 🔹 Increment click count
     private void incrementClickCount(String shortCode) {
         urlRepository.incrementClicks(shortCode, LocalDateTime.now());
     }
 
-    // 🔹 Background cache cleanup
-    private void cleanupCache() {
-        LocalDateTime now = LocalDateTime.now();
-        cache.entrySet().removeIf(e -> e.getValue().isExpiredAt(now));
+    // 🔹 Generate a unique short code
+    private String generateUniqueShortCode() {
+        String code;
+        int attempts = 0;
+        do {
+            code = generateShortCode();
+            attempts++;
+        } while (urlRepository.existsByShortCode(code) && attempts < 50);
+
+        if (attempts >= 50)
+            throw new IllegalStateException("Unable to generate unique short code");
+
+        return code;
     }
 
-    // 🔹 Helper classes & methods
+    // 🔹 Base62 short code generator
     private String generateShortCode() {
-        byte[] bytes = new byte[5]; // ~8 Base62 chars
+        byte[] bytes = new byte[5];
         RANDOM.nextBytes(bytes);
         return toBase62(bytes).substring(0, 6);
     }
@@ -145,6 +151,13 @@ public class UrlService {
         return sb.reverse().toString();
     }
 
+    // 🔹 Background cache cleaner
+    private void cleanupCache() {
+        LocalDateTime now = LocalDateTime.now();
+        cache.entrySet().removeIf(e -> e.getValue().isExpiredAt(now));
+    }
+
+    // 🔹 Cache Entry Inner Class
     private static class CacheEntry {
         final String value;
         final LocalDateTime expiryAt;
