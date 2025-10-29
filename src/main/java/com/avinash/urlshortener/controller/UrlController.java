@@ -46,14 +46,13 @@ public class UrlController {
         return ResponseEntity.ok(urlService.findAll());
     }
 
-    // 🔹 Delete by short code
     @DeleteMapping("/{shortCode}")
-    public ResponseEntity<String> deleteUrl(@PathVariable String shortCode) {
+    public ResponseEntity<Map<String, String>> deleteUrl(@PathVariable String shortCode) {
         boolean deleted = urlService.deleteByShortCode(shortCode);
         if (deleted) {
-            return ResponseEntity.ok("Deleted successfully");
+            return ResponseEntity.ok(Map.of("message", "Deleted successfully"));
         } else {
-            return ResponseEntity.badRequest().body("Short code not found");
+            return ResponseEntity.badRequest().body(Map.of("message", "Short code not found"));
         }
     }
 }

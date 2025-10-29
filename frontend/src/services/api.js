@@ -1,102 +1,83 @@
 import axios from "axios";
 
-// ✅ Base Axios instance
+// ✅ Base API Config
 const api = axios.create({
   baseURL:
     process.env.REACT_APP_API_BASE_URL ||
-    "https://url-shortener-backend-k0pv.onrender.com/api", // fallback
+    "https://url-shortener-backend-k0pv.onrender.com/api",
   headers: { "Content-Type": "application/json" },
 });
 
-// ✅ Request interceptor (for logging)
+// ✅ API Request Logger
 api.interceptors.request.use(
   (config) => {
-    console.log("🚀 API Request:", config.method?.toUpperCase(), config.url);
+    console.log("➡️ Request:", config.method?.toUpperCase(), config.url);
     return config;
   },
-  (error) => {
-    console.error("❌ API Request Error:", error);
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// ✅ Response interceptor (for logging)
+// ✅ API Response Logger
 api.interceptors.response.use(
   (response) => {
-    console.log("✅ API Response:", response.status, response.config.url);
+    console.log("✅ Response:", response.status, response.config.url);
     return response;
   },
   (error) => {
-    console.error(
-      "❌ API Response Error:",
-      error.response?.status,
-      error.message
-    );
+    console.error("❌ API Error:", error.response?.data || error.message);
     return Promise.reject(error);
   }
 );
 
-// ✅ API Service Functions
+// ✅ URL Service
 const urlService = {
-  // 🔹 Create Short URL
+  // 🔹 Shorten URL
   shortenUrl: async (originalUrl, expiryDate = null) => {
     try {
       const payload = {
-        originalUrl: originalUrl, // ✅ matches backend
-        expiryAt: expiryDate, // optional
+        originalUrl: originalUrl, // ✅ backend expects this key
+        expiryAt: expiryDate,
       };
-      const response = await api.post("/shorten", payload);
-      return response.data;
-    } catch (error) {
-      console.error("❌ shortenUrl error:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to shorten URL"
-      );
+      const res = await api.post("/shorten", payload);
+      return res.data;
+    } catch (err) {
+      console.error("❌ shortenUrl:", err);
+      throw new Error(err.response?.data?.message || "Failed to shorten URL");
     }
   },
 
-  // 🔹 Get All URLs (Dashboard)
+  // 🔹 Get all URLs
   getAllUrls: async () => {
     try {
-      const response = await api.get("/all");
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || "Failed to fetch URLs");
+      const res = await api.get("/all");
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || "Failed to fetch URLs");
     }
   },
 
-  // 🔹 Delete URL by short code
-  deleteUrl: async (shortCode) => {
-    try {
-      const response = await api.delete(`/${shortCode}`); // ✅ backend expects this
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || "Failed to delete URL");
-    }
-  },
+  // 🔹 Delete URL
+deleteUrl: async (shortCode) => {
+  try {
+    const res = await api.delete(`/${shortCode}`); // ✅ matches backend
+    console.log("Delete response:", res);
+    // Handle both plain text and JSON
+    return res.data || "Deleted successfully";
+  } catch (err) {
+    console.error("❌ deleteUrl:", err);
+    throw new Error(err.response?.data?.message || "Failed to delete URL");
+  }
+},
 
-  // 🔹 Get Redirect / Analytics
-  getRedirect: async (shortCode) => {
-    try {
-      const response = await api.get(`/${shortCode}`);
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || "URL not found");
-    }
-  },
-
-  // 🔹 Health Check (status badge)
+  // 🔹 Health Check
   healthCheck: async () => {
     try {
-      const response = await api.get("/actuator/health").catch(() =>
-        api.get("/health") // fallback
-      );
-      return response.data;
-    } catch (error) {
+      const res = await api.get("/actuator/health").catch(() => api.get("/health"));
+      return res.data;
+    } catch (err) {
       throw new Error("Service unavailable");
     }
   },
 };
 
-// ✅ Export single instance
 export default urlService;
