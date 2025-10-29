@@ -29,25 +29,30 @@ const Dashboard = () => {
   };
 
   // ✅ Delete short URL from backend
-  const handleDelete = async (shortCode) => {
-    if (!window.confirm('Are you sure you want to delete this URL?')) return;
+  // ✅ Delete short URL from backend (fixed)
+const handleDelete = async (shortCode) => {
+  if (!window.confirm('Are you sure you want to delete this URL?')) return;
 
-    setDeleteLoading((prev) => ({ ...prev, [shortCode]: true }));
-    try {
-      const res = await urlService.deleteUrl(shortCode);
-      if (res?.status === 200 || res?.success) {
-        setUrls((prev) => prev.filter((u) => u.shortCode !== shortCode));
-        toast.success('URL deleted successfully 🗑️');
-      } else {
-        toast.error('Delete failed');
-      }
-    } catch (err) {
-      toast.error('Error deleting URL');
-      console.error(err);
-    } finally {
-      setDeleteLoading((prev) => ({ ...prev, [shortCode]: false }));
+  setDeleteLoading((prev) => ({ ...prev, [shortCode]: true }));
+
+  try {
+    const res = await urlService.deleteUrl(shortCode);
+
+    // 🔹 Backend sends plain text ("Deleted successfully"), so we handle both text & JSON
+    if (res && (typeof res === "string" || res?.message || res?.status === 200)) {
+      setUrls((prev) => prev.filter((u) => u.shortCode !== shortCode));
+      toast.success("URL deleted successfully 🗑️");
+    } else {
+      toast.error("Failed to delete URL ❌");
     }
-  };
+  } catch (err) {
+    console.error("❌ Delete error:", err);
+    toast.error("Error deleting URL");
+  } finally {
+    setDeleteLoading((prev) => ({ ...prev, [shortCode]: false }));
+  }
+};
+
 
   // ✅ Copy short URL
   const handleCopy = (url) => {

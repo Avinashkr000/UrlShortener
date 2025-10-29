@@ -57,17 +57,18 @@ const urlService = {
   },
 
   // 🔹 Delete URL
+// 🔹 Delete URL (fixed)
 deleteUrl: async (shortCode) => {
   try {
-    const res = await api.delete(`/${shortCode}`); // ✅ matches backend
-    console.log("Delete response:", res);
-    // Handle both plain text and JSON
-    return res.data || "Deleted successfully";
+    const res = await api.delete(`/${shortCode}`, { responseType: "text" }); // ✅ tell Axios it's plain text
+    console.log("✅ Delete response:", res.data);
+    return res.data || "Deleted successfully"; // fallback
   } catch (err) {
-    console.error("❌ deleteUrl:", err);
-    throw new Error(err.response?.data?.message || "Failed to delete URL");
+    console.error("❌ Delete error:", err);
+    throw new Error("Delete failed");
   }
 },
+
 
   // 🔹 Health Check
   healthCheck: async () => {
